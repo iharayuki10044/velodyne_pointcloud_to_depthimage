@@ -18,10 +18,14 @@ class VelodynePointcloudToDepthimage{
 		ros::Publisher _pub_img_64f;
 		ros::Publisher _pub_img_16u;
 		ros::Publisher _pub_img_8u;
+
+		ros::Publisher _pub_img_front;
+
 		/*image*/
 		cv::Mat _img_cv_64f;
 		cv::Mat _img_cv_16u;
 		cv::Mat _img_cv_8u;
+		cv::Mat _img_cv_front;
 		/*point cloud*/
 		std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> _rings;
 		/*counter*/
@@ -41,6 +45,7 @@ class VelodynePointcloudToDepthimage{
 		void pcToRings(const sensor_msgs::PointCloud2& pc_msg);
 		void ringsToImage(void);
 		void publication(std_msgs::Header header);
+		void clipped_depthimage();
 };
 
 VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
@@ -68,6 +73,9 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	_pub_img_64f = _nh.advertise<sensor_msgs::Image>("/depth_image/64fc1", 1);
 	_pub_img_16u = _nh.advertise<sensor_msgs::Image>("/depth_image/16uc1", 1);
 	_pub_img_8u = _nh.advertise<sensor_msgs::Image>("/depth_image/8uc1", 1);
+
+	_pub_img_front = _nh.advertise<sensor_msgs::Image>("/depth_image/front", 1);
+
 	/*initialize*/
 	_rings.resize(_num_ring);
 	for(size_t i=0 ; i<_rings.size() ; ++i){
@@ -83,6 +91,7 @@ void VelodynePointcloudToDepthimage::callbackPC(const sensor_msgs::PointCloud2Co
 	}
 	pcToRings(*msg);
 	ringsToImage();
+	clipped_depthimage();
 	publication(msg->header);
 }
 
@@ -124,6 +133,9 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 	_img_cv_64f.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
 	_img_cv_64f.convertTo(_img_cv_8u, CV_8UC1, 255/_max_range, 0);
 	/*save*/
+
+	std::cout << "image size " << _img_cv_64f.size() << std::endl;
+
 	if(_save_limit > 0 && _save_counter < _save_limit){
 		/*CV_64FC1*/
 		std::string save_mat64f_path = _save_root_path + "/" + _save_img_name + std::to_string(_save_counter) + "_64f.xml";
@@ -163,9 +175,11 @@ void VelodynePointcloudToDepthimage::publication(std_msgs::Header header)
 	sensor_msgs::ImagePtr img_ros_64f = cv_bridge::CvImage(header, "64FC1", _img_cv_64f).toImageMsg();
 	sensor_msgs::ImagePtr img_ros_16u = cv_bridge::CvImage(header, "mono16", _img_cv_16u).toImageMsg();
 	sensor_msgs::ImagePtr img_ros_8u = cv_bridge::CvImage(header, "mono8", _img_cv_8u).toImageMsg();
+	sensor_msgs::ImagePtr img_ros_front = cv_bridge::CvImage(header, "64FC1", _img_cv_front).toImageMsg();
 	_pub_img_64f.publish(img_ros_64f);
 	_pub_img_16u.publish(img_ros_16u);
 	_pub_img_8u.publish(img_ros_8u);
+	_pub_img_front.publish(img_ros_front);
 
 	/*check*/
 	//cv_bridge::CvImagePtr cv_ptr_64f = cv_bridge::toCvCopy(img_ros_64f, img_ros_64f->encoding);
@@ -179,6 +193,27 @@ void VelodynePointcloudToDepthimage::publication(std_msgs::Header header)
 	//		std::cout << "(int)cv_ptr_8u->image.at<unsigned char>(" << row << ", " << col << ") = " << (int)cv_ptr_8u->image.at<unsigned char>(row, col) << std::endl;
 	//	}
 	//}
+}
+
+void VelodynePointcloudToDepthimage::clipped_depthimage()
+{
+	int half_points = _points_per_ring /2;
+	half_points -= half_points - 91;
+
+	std::cout << "croped point : 0 || " << half_points << std::endl;
+	std::cout << "croped size  :  " << half_points <<" || 32" << std::endl;
+
+	cv::Rect roi(cv::Point(half_points, 0), cv::Size(132, 32));
+	_img_cv_front = _img_cv_64f(roi);
+
+	std::cout << "croped img size : " << _img_cv_front.size() << std::endl;
+
+	if(_save_counter < 15){
+		std::cout << "-----saved-------" << std::endl;
+		std::string save_path = _save_root_path + std::to_string(_save_counter) + "front.jpeg";
+		cv::imwrite(save_path, _img_cv_front);
+		_save_counter++;
+	}
 }
 
 int main(int argc, char** argv)
