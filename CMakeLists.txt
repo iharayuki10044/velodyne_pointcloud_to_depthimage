@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(velodyne_pointcloud_to_depthimage)
 
-add_compile_options(-std=c++11 -O2 -g -Wall)
+add_compile_options(-std=c++14 -O2 -g -Wall)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   cv_bridge
 )
-find_package(PCL)
+find_package(PCL REQUIRED)
 find_package(OpenCV)
 
 ## System dependencies are found with CMake's conventions
