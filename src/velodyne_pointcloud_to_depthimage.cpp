@@ -7,13 +7,17 @@
 #include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.h>
 
-class VelodynePointcloudToDepthimage{
+class VelodynePointcloudToDepthimage
+{
 	private:
 		/*node handle*/
 		ros::NodeHandle _nh;
 		ros::NodeHandle _nhPrivate;
 		/*subscriber*/
 		ros::Subscriber _sub_pc;
+
+		ros::Subscriber _sub_rgb;
+
 		/*publisher*/
 		ros::Publisher _pub_img_64f;
 		ros::Publisher _pub_img_16u;
@@ -36,12 +40,18 @@ class VelodynePointcloudToDepthimage{
 		double _depth_resolution;
 		double _max_range;
 		int _save_limit;
+
+		double _field_of_view;
+
 		std::string _save_root_path;
 		std::string _save_img_name;
 
 	public:
 		VelodynePointcloudToDepthimage();
 		void callbackPC(const sensor_msgs::PointCloud2ConstPtr& msg);
+
+		void callbackRGB(const sensor_msgs::CompressedImageConstPtr& msg);
+
 		void pcToRings(const sensor_msgs::PointCloud2& pc_msg);
 		void ringsToImage(void);
 		void publication(std_msgs::Header header);
@@ -63,12 +73,19 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	std::cout << "_max_range = " << _max_range << std::endl;
 	_nhPrivate.param("save_limit", _save_limit, -1);
 	std::cout << "_save_limit = " << _save_limit << std::endl;
+
+	_nhPrivate.param("field_of_view", _field_of_view, 90.0);
+	std::cout << "_field_of_view = " << _field_of_view << std::endl;
+
 	_nhPrivate.param("save_root_path", _save_root_path, std::string("saved"));
 	std::cout << "_save_root_path = " << _save_root_path << std::endl;
 	_nhPrivate.param("save_img_name", _save_img_name, std::string("depth_"));
 	std::cout << "_save_img_name = " << _save_img_name << std::endl;
 	/*sub*/
 	_sub_pc = _nh.subscribe("/velodyne_points", 1, &VelodynePointcloudToDepthimage::callbackPC, this);
+
+	_sub_rgb = _nh.subscribe("/camera/rgb/image_raw", 1, &VelodynePointcloudToDepthimage::callbackRGB, this);
+
 	/*pub*/
 	_pub_img_64f = _nh.advertise<sensor_msgs::Image>("/depth_image/64fc1", 1);
 	_pub_img_16u = _nh.advertise<sensor_msgs::Image>("/depth_image/16uc1", 1);
@@ -91,7 +108,7 @@ void VelodynePointcloudToDepthimage::callbackPC(const sensor_msgs::PointCloud2Co
 	}
 	pcToRings(*msg);
 	ringsToImage();
-	clipped_depthimage();
+	// clipped_depthimage();
 	publication(msg->header);
 }
 
@@ -132,10 +149,25 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 	/*convert*/
 	_img_cv_64f.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
 	_img_cv_64f.convertTo(_img_cv_8u, CV_8UC1, 255/_max_range, 0);
+	
+	std::cout << "------------------" << std::endl;
+	std::cout << "image size 64 " << _img_cv_64f.size() << std::endl;
+	std::cout << "image type " << _img_cv_64f.type() << std::endl;
+
+	std::cout << "image size 16 " << _img_cv_16u.size() << std::endl;
+	std::cout << "image type " << _img_cv_16u.type() << std::endl;
+
+	std::cout << "image size 8 " << _img_cv_8u.size() << std::endl;
+	std::cout << "image type " << _img_cv_8u.type() << std::endl;
+
+	std::cout << "------------------" << std::endl;
+
+	// std::cout << "save limit " << _save_limit << std::endl;
+	// std::cout << "save count " << _save_counter << std::endl;
+	// std::cout << "------------------" << std::endl;
+
+
 	/*save*/
-
-	std::cout << "image size " << _img_cv_64f.size() << std::endl;
-
 	if(_save_limit > 0 && _save_counter < _save_limit){
 		/*CV_64FC1*/
 		std::string save_mat64f_path = _save_root_path + "/" + _save_img_name + std::to_string(_save_counter) + "_64f.xml";
@@ -159,14 +191,15 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 		std::cout << "_img_cv_64f: " << _img_cv_64f.size().height << " x " << _img_cv_64f.size().width << std::endl;
 		std::cout << "_img_cv_16u: " << _img_cv_16u.size().height << " x " << _img_cv_16u.size().width << std::endl;
 		std::cout << "_img_cv_8u: " << _img_cv_8u.size().height << " x " << _img_cv_8u.size().width << std::endl;
-		//for(int row=0 ; row<_img_cv_64f.size().height ; row+=_img_cv_64f.size().height/3){
-		//	for(int col=0 ; col<_img_cv_64f.size().width ; col+=_img_cv_64f.size().width/3){
-		//		std::cout << "_img_cv_64f.at<double>(" << row << ", " << col << ") = " << _img_cv_64f.at<double>(row, col) << std::endl;
-		//		std::cout << "_img_cv_16u.at<unsigned short>(" << row << ", " << col << ") = " << _img_cv_16u.at<unsigned short>(row, col) << std::endl;
-		//		std::cout << "_img_cv_16u.at<unsigned long int>(" << row << ", " << col << ") = " << _img_cv_16u.at<unsigned long int>(row, col) << std::endl;
-		//		std::cout << "(int)_img_cv_8u.at<unsigned char>(" << row << ", " << col << ") = " << (int)_img_cv_8u.at<unsigned char>(row, col) << std::endl;
-		//	}
-		//}
+	
+		// for(int row=0 ; row<_img_cv_64f.size().height ; row+=_img_cv_64f.size().height/3){
+		// 	for(int col=0 ; col<_img_cv_64f.size().width ; col+=_img_cv_64f.size().width/3){
+		// 		std::cout << "_img_cv_64f.at<double>(" << row << ", " << col << ") = " << _img_cv_64f.at<double>(row, col) << std::endl;
+		// 		std::cout << "_img_cv_16u.at<unsigned short>(" << row << ", " << col << ") = " << _img_cv_16u.at<unsigned short>(row, col) << std::endl;
+		// 		std::cout << "_img_cv_16u.at<unsigned long int>(" << row << ", " << col << ") = " << _img_cv_16u.at<unsigned long int>(row, col) << std::endl;
+		// 		std::cout << "(int)_img_cv_8u.at<unsigned char>(" << row << ", " << col << ") = " << (int)_img_cv_8u.at<unsigned char>(row, col) << std::endl;
+		// 	}
+		// }
 	}
 }
 
@@ -176,35 +209,45 @@ void VelodynePointcloudToDepthimage::publication(std_msgs::Header header)
 	sensor_msgs::ImagePtr img_ros_16u = cv_bridge::CvImage(header, "mono16", _img_cv_16u).toImageMsg();
 	sensor_msgs::ImagePtr img_ros_8u = cv_bridge::CvImage(header, "mono8", _img_cv_8u).toImageMsg();
 	sensor_msgs::ImagePtr img_ros_front = cv_bridge::CvImage(header, "64FC1", _img_cv_front).toImageMsg();
-	_pub_img_64f.publish(img_ros_64f);
-	_pub_img_16u.publish(img_ros_16u);
+	// _pub_img_64f.publish(img_ros_64f);
+	// _pub_img_16u.publish(img_ros_16u);
 	_pub_img_8u.publish(img_ros_8u);
-	_pub_img_front.publish(img_ros_front);
+	// _pub_img_front.publish(img_ros_front);
 
 	/*check*/
-	//cv_bridge::CvImagePtr cv_ptr_64f = cv_bridge::toCvCopy(img_ros_64f, img_ros_64f->encoding);
-	//cv_bridge::CvImagePtr cv_ptr_16u = cv_bridge::toCvCopy(img_ros_16u, img_ros_16u->encoding);
-	//cv_bridge::CvImagePtr cv_ptr_8u = cv_bridge::toCvCopy(img_ros_8u, img_ros_8u->encoding);
-	//for(int row=0 ; row<cv_ptr_64f->image.size().height ; row+=cv_ptr_64f->image.size().height/3){
-	//	for(int col=0 ; col<cv_ptr_64f->image.size().width ; col+=cv_ptr_64f->image.size().width/3){
-	//		std::cout << "_img_cv_64f.at<double>(" << row << ", " << col << ") = " << _img_cv_64f.at<double>(row, col) << std::endl;
-	//		std::cout << "cv_ptr_64f->image.at<double>(" << row << ", " << col << ") = " << cv_ptr_64f->image.at<double>(row, col) << std::endl;
-	//		std::cout << "cv_ptr_16u->image.at<unsigned short>(" << row << ", " << col << ") = " << cv_ptr_16u->image.at<unsigned short>(row, col) << std::endl;
-	//		std::cout << "(int)cv_ptr_8u->image.at<unsigned char>(" << row << ", " << col << ") = " << (int)cv_ptr_8u->image.at<unsigned char>(row, col) << std::endl;
-	//	}
-	//}
+	// cv_bridge::CvImagePtr cv_ptr_64f = cv_bridge::toCvCopy(img_ros_64f, img_ros_64f->encoding);
+	// cv_bridge::CvImagePtr cv_ptr_16u = cv_bridge::toCvCopy(img_ros_16u, img_ros_16u->encoding);
+	// cv_bridge::CvImagePtr cv_ptr_8u = cv_bridge::toCvCopy(img_ros_8u, img_ros_8u->encoding);
+	// for(int row=0 ; row<cv_ptr_64f->image.size().height ; row+=cv_ptr_64f->image.size().height/3){
+	// 	for(int col=0 ; col<cv_ptr_64f->image.size().width ; col+=cv_ptr_64f->image.size().width/3){
+
+	// 		std::cout << "--------- check ---------" << std::endl;
+
+	// 		std::cout << "_img_cv_64f.at<double>(" << row << ", " << col << ") = " << _img_cv_64f.at<double>(row, col) << std::endl;
+	// 		std::cout << "cv_ptr_64f->image.at<double>(" << row << ", " << col << ") = " << cv_ptr_64f->image.at<double>(row, col) << std::endl;
+	// 		std::cout << "cv_ptr_16u->image.at<unsigned short>(" << row << ", " << col << ") = " << cv_ptr_16u->image.at<unsigned short>(row, col) << std::endl;
+	// 		std::cout << "(int)cv_ptr_8u->image.at<unsigned char>(" << row << ", " << col << ") = " << (int)cv_ptr_8u->image.at<unsigned char>(row, col) << std::endl;
+	// 	}
+	// }
 }
 
 void VelodynePointcloudToDepthimage::clipped_depthimage()
 {
 	int half_points = _points_per_ring /2;
-	half_points -= half_points - 91;
+	half_points -= 91;
+	int siten = half_points - _points_per_ring * _field_of_view/2 / 360;
 
-	std::cout << "croped point : 0 || " << half_points << std::endl;
-	std::cout << "croped size  :  " << half_points <<" || 32" << std::endl;
 
-	cv::Rect roi(cv::Point(half_points, 0), cv::Size(132, 32));
-	_img_cv_front = _img_cv_64f(roi);
+	_img_cv_64f = cv::Mat(32, 132, CV_64FC1);
+	
+	std::cout << "croped point : 0 || " << siten << std::endl;
+
+	cv::Mat front_img = cv::Mat(_img_cv_8u, cv::Rect(siten, 0, 32, 32));
+
+
+	// cv::Rect roi(cv::Point(half_points, 0), cv::Size(32, 32));
+	// std::cout << "---------------" << std::endl;
+	// _img_cv_front = _img_cv_64f(roi);
 
 	std::cout << "croped img size : " << _img_cv_front.size() << std::endl;
 
@@ -214,6 +257,13 @@ void VelodynePointcloudToDepthimage::clipped_depthimage()
 		cv::imwrite(save_path, _img_cv_front);
 		_save_counter++;
 	}
+}
+
+void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedImageConstPtr &msg)
+{
+	
+
+
 }
 
 int main(int argc, char** argv)
