@@ -30,6 +30,11 @@ class VelodynePointcloudToDepthimage
 		cv::Mat _img_cv_16u;
 		cv::Mat _img_cv_8u;
 		cv::Mat _img_cv_front;
+
+		cv::Mat _img_sub_rgb;
+
+		cv::Mat _img_pub_rgbd;
+
 		/*point cloud*/
 		std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> _rings;
 		/*counter*/
@@ -46,6 +51,9 @@ class VelodynePointcloudToDepthimage
 		std::string _save_root_path;
 		std::string _save_img_name;
 
+		bool is_velodyne_ok = false;
+		bool is_rgb_ok = false;
+
 	public:
 		VelodynePointcloudToDepthimage();
 		void callbackPC(const sensor_msgs::PointCloud2ConstPtr& msg);
@@ -56,6 +64,10 @@ class VelodynePointcloudToDepthimage
 		void ringsToImage(void);
 		void publication(std_msgs::Header header);
 		void clipped_depthimage();
+
+		void process();
+		void generate_RGBD();
+
 };
 
 VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
@@ -81,10 +93,16 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	std::cout << "_save_root_path = " << _save_root_path << std::endl;
 	_nhPrivate.param("save_img_name", _save_img_name, std::string("depth_"));
 	std::cout << "_save_img_name = " << _save_img_name << std::endl;
+
+	is_velodyne_ok = false;
+	is_rgb_ok = false;
+
+
+
 	/*sub*/
 	_sub_pc = _nh.subscribe("/velodyne_points", 1, &VelodynePointcloudToDepthimage::callbackPC, this);
 
-	_sub_rgb = _nh.subscribe("/camera/rgb/image_raw", 1, &VelodynePointcloudToDepthimage::callbackRGB, this);
+	_sub_rgb = _nh.subscribe("/usb_cam/image_raw/compressed", 1, &VelodynePointcloudToDepthimage::callbackRGB, this);
 
 	/*pub*/
 	_pub_img_64f = _nh.advertise<sensor_msgs::Image>("/depth_image/64fc1", 1);
@@ -99,6 +117,11 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 		pcl::PointCloud<pcl::PointXYZI>::Ptr tmp (new pcl::PointCloud<pcl::PointXYZI>);
 		_rings[i] = tmp;
 	}
+
+	// width height channel 
+	_img_pub_rgbd = cv::Mat::zeros(720, 1280, CV_8UC4);
+
+
 }
 
 void VelodynePointcloudToDepthimage::callbackPC(const sensor_msgs::PointCloud2ConstPtr &msg)
@@ -109,7 +132,7 @@ void VelodynePointcloudToDepthimage::callbackPC(const sensor_msgs::PointCloud2Co
 	pcToRings(*msg);
 	ringsToImage();
 	// clipped_depthimage();
-	publication(msg->header);
+	// publication(msg->header);
 }
 
 void VelodynePointcloudToDepthimage::pcToRings(const sensor_msgs::PointCloud2& pc_msg)
@@ -150,17 +173,17 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 	_img_cv_64f.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
 	_img_cv_64f.convertTo(_img_cv_8u, CV_8UC1, 255/_max_range, 0);
 	
-	std::cout << "------------------" << std::endl;
-	std::cout << "image size 64 " << _img_cv_64f.size() << std::endl;
-	std::cout << "image type " << _img_cv_64f.type() << std::endl;
+	// std::cout << "------------------" << std::endl;
+	// std::cout << "image size 64 " << _img_cv_64f.size() << std::endl;
+	// std::cout << "image type " << _img_cv_64f.type() << std::endl;
 
-	std::cout << "image size 16 " << _img_cv_16u.size() << std::endl;
-	std::cout << "image type " << _img_cv_16u.type() << std::endl;
+	// std::cout << "image size 16 " << _img_cv_16u.size() << std::endl;
+	// std::cout << "image type " << _img_cv_16u.type() << std::endl;
 
-	std::cout << "image size 8 " << _img_cv_8u.size() << std::endl;
-	std::cout << "image type " << _img_cv_8u.type() << std::endl;
+	// std::cout << "image size 8 " << _img_cv_8u.size() << std::endl;
+	// std::cout << "image type " << _img_cv_8u.type() << std::endl;
 
-	std::cout << "------------------" << std::endl;
+	// std::cout << "------------------" << std::endl;
 
 	// std::cout << "save limit " << _save_limit << std::endl;
 	// std::cout << "save count " << _save_counter << std::endl;
@@ -261,7 +284,42 @@ void VelodynePointcloudToDepthimage::clipped_depthimage()
 
 void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedImageConstPtr &msg)
 {
-	
+	try {
+		_img_sub_rgb = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8)->image;
+
+
+
+		std::cout << "rgb image type : " << _img_sub_rgb.type() << std::endl;	
+		std::cout << "rgb image size : " << _img_sub_rgb.size() << std::endl;		
+		std::cout << "rgb image channels : " << _img_sub_rgb.channels() << std::endl;
+		std::cout << "rgb image width : " << _img_sub_rgb.cols << std::endl;
+		std::cout << "rgb image depth : " << _img_sub_rgb.depth() << std::endl;
+		std::cout << "rgb image at 0,0 : " << (int)_img_sub_rgb.at<unsigned char>(0, 0) << std::endl;
+
+		std::cout << "rgbd image size : " << _img_pub_rgbd.size() << std::endl;
+		std::cout << "rgbd image channels : " << _img_pub_rgbd.channels() << std::endl;
+		std::cout << "rgbd image depth : " << _img_pub_rgbd.depth() << std::endl;
+
+		// channel convetrt 3 to 4	
+		_img_sub_rgb.reshape(4, 0);
+
+		is_rgb_ok = true;	
+	}	
+	catch (cv_bridge::Exception& e) {
+		ROS_ERROR("cv_bridge exception: %s", e.what());
+	}
+
+}
+
+void VelodynePointcloudToDepthimage::generate_RGBD()
+{
+	if(is_velodyne_ok && is_rgb_ok){
+		
+
+	}
+
+
+
 
 
 }
