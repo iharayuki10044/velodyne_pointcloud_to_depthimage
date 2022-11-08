@@ -302,13 +302,23 @@ void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedIm
 
 		_img_pub_rgbd = _img_sub_rgb.clone();
 
+		// int width = _img_sub_rgb.cols;
+		// int heght = _img_sub_rgb.rows;
+
+		// _img_sub_r.zeros(width, heght, CV_8UC1);
+		// _img_sub_g.zeros(width, heght, CV_8UC1);
+		// _img_sub_b.zeros(width, heght, CV_8UC1);
+		// _img_sub_a.zeros(width, heght, CV_8UC1);
 
 		std::vector<cv::Mat> _img_sub_rgb_channels;
 		cv::split(_img_sub_rgb, _img_sub_rgb_channels);
-		cv::copyTo(_img_sub_rgb_channels[0], _img_sub_g, _img_cv_8u);
-		cv::copyTo(_img_sub_rgb_channels[1], _img_sub_r, _img_cv_8u);
-		cv::copyTo(_img_sub_rgb_channels[2], _img_sub_b, _img_cv_8u);
-		cv::copyTo(_img_sub_rgb_channels[3], _img_sub_a, _img_cv_8u);
+		_img_sub_g = _img_sub_rgb_channels[0];
+		_img_sub_r = _img_sub_rgb_channels[1];
+		_img_sub_b = _img_sub_rgb_channels[2];
+		_img_sub_a = _img_sub_rgb_channels[3];
+
+
+		std::cout << "chnanel num" << _img_sub_rgb_channels.size() << std::endl;
 
 		std::cout << "converted rgbD image size : " << _img_pub_rgbd.size() << std::endl;
 		std::cout << "converted rgbD image channels : " << _img_pub_rgbd.channels() << std::endl;
