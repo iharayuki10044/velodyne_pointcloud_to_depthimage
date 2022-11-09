@@ -24,6 +24,7 @@ class VelodynePointcloudToDepthimage
 		ros::Publisher _pub_img_16u;
 		ros::Publisher _pub_img_8u;
 		ros::Publisher _pub_img_front;
+		ros::Publisher _pub_img_rgbd;
 
 		/*image*/
 		cv::Mat _img_cv_64f;
@@ -37,6 +38,8 @@ class VelodynePointcloudToDepthimage
 		cv::Mat _img_sub_g;
 		cv::Mat _img_sub_b;
 		cv::Mat _img_sub_a;
+
+		cv::Mat _img_sub_d;
 
 		/*point cloud*/
 		std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> _rings;
@@ -115,6 +118,8 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 
 	_pub_img_front = _nh.advertise<sensor_msgs::Image>("/depth_image/front", 1);
 
+	_pub_img_rgbd = _nh.advertise<sensor_msgs::Image>("/depth_image/rgbd", 1);
+
 	/*initialize*/
 	_rings.resize(_num_ring);
 	for(size_t i=0 ; i<_rings.size() ; ++i){
@@ -123,7 +128,7 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	}
 
 	// width height channel 
-	_img_pub_rgbd = cv::Mat::zeros(720, 1280, CV_8UC4);
+	// _img_pub_rgbd = cv::Mat::zeros(720, 1280, CV_8UC4);
 
 	_cliped_points_x =  1092 * (180 - _field_of_view/2) /360.0; 
 	_cliped_width = 1092 * _field_of_view /360.0;
@@ -179,37 +184,42 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 	_img_cv_64f.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
 	_img_cv_64f.convertTo(_img_cv_8u, CV_8UC1, 255/_max_range, 0);
 	
-	std::cout << "------------------" << std::endl;
+	// std::cout << "------------------" << std::endl;
 	// std::cout << "image size 64 " << _img_cv_64f.size() << std::endl;
 	// std::cout << "image type " << _img_cv_64f.type() << std::endl;
 	// std::cout << "image size 16 " << _img_cv_16u.size() << std::endl;
 	// std::cout << "image type " << _img_cv_16u.type() << std::endl;
 
-	std::cout << "image size 8 " << _img_cv_8u.size() << std::endl;
-	std::cout << "image type " << _img_cv_8u.type() << std::endl;
+	// std::cout << "image size 8 " << _img_cv_8u.size() << std::endl;
+	// std::cout << "image type " << _img_cv_8u.type() << std::endl;
 	// _img_cv_8u.resize(720, 1280);
-	std::cout << "image big size 8 " << _img_cv_8u.size() << std::endl;
+	// std::cout << "image big size 8 " << _img_cv_8u.size() << std::endl;
 
-	std::cout << "clip x : " << _cliped_points_x << std::endl;
-	std::cout << "clip width : " << _cliped_width << std::endl;
+	// std::cout << "clip x : " << _cliped_points_x << std::endl;
+	// std::cout << "clip width : " << _cliped_width << std::endl;
 
 	cv::Mat output;
 	output = cv::Mat(_img_cv_8u, cv::Rect(_cliped_points_x, 0, _cliped_width, 32));
 
-	cv::Mat output_resize;
-	cv::resize(output, output_resize, cv::Size(1280, 720), 0, 0, cv::INTER_NEAREST);
+	cv::resize(output, _img_sub_d, cv::Size(1280, 720), 0, 0, cv::INTER_NEAREST);
 
-	std::cout << "img resize size : " << output.size() << std::endl;
+	// std::cout << "img resize size : " << _img_sub_d.size() << std::endl;
 
-	std::cout << "------------------" << std::endl;
+	// std::cout << "------------------" << std::endl;
 
 	_save_counter++;
-	if(_save_counter % 20 == 0){
+	if(_save_counter % 10 == 0){
 		std::string filename = "/home/amsl/rgbd_test/front_depth_" + std::to_string(_save_counter) + ".png";
 		std::string filename_resize = "/home/amsl/rgbd_test/front_depth_resize" + std::to_string(_save_counter) + ".png";
 		cv::imwrite(filename, output);
-		cv::imwrite(filename_resize, output_resize);	
+		cv::imwrite(filename_resize, _img_sub_d);	
+		cv::imshow("depth_moto", output);
+		cv::imshow("depth_resize", _img_sub_d);
+		cv::waitKey(2000);
+
 	}
+
+	is_velodyne_ok = true;
 
 	// std::cout << "save limit " << _save_limit << std::endl;
 	// std::cout << "save count " << _save_counter << std::endl;
@@ -282,12 +292,12 @@ void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedIm
 	try {
 		_img_sub_rgb = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGRA16)->image;
 
-		std::cout << "rgb image type : " << _img_sub_rgb.type() << std::endl;	
-		std::cout << "rgb image size : " << _img_sub_rgb.size() << std::endl;		
-		std::cout << "rgb image channels : " << _img_sub_rgb.channels() << std::endl;
-		std::cout << "rgb image width : " << _img_sub_rgb.cols << std::endl;
-		std::cout << "rgb image depth : " << _img_sub_rgb.depth() << std::endl;
-		std::cout << "rgb image at 0,0 : " << (int)_img_sub_rgb.at<unsigned char>(0, 0) << std::endl;
+		// std::cout << "rgb image type : " << _img_sub_rgb.type() << std::endl;	
+		// std::cout << "rgb image size : " << _img_sub_rgb.size() << std::endl;		
+		// std::cout << "rgb image channels : " << _img_sub_rgb.channels() << std::endl;
+		// std::cout << "rgb image width : " << _img_sub_rgb.cols << std::endl;
+		// std::cout << "rgb image depth : " << _img_sub_rgb.depth() << std::endl;
+		// std::cout << "rgb image at 0,0 : " << (int)_img_sub_rgb.at<unsigned char>(0, 0) << std::endl;
 
 		cv::Mat output;
 		output = cv::Mat(_img_sub_rgb, cv::Rect(240, 120, 120, 240));
@@ -330,20 +340,75 @@ void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedIm
 		ROS_ERROR("cv_bridge exception: %s", e.what());
 	}
 
+	std::cout << "img size b : " << _img_sub_b.size() << std::endl;
+	std::cout << "img size g : " << _img_sub_g.size() << std::endl;
+	std::cout << "img size r : " << _img_sub_r.size() << std::endl;
+	std::cout << "img size a : " << _img_sub_a.size() << std::endl;
+	std::cout << "img size d : " << _img_sub_d.size() << std::endl;
+
+	std::cout << "img channel b : " << _img_sub_b.channels() << std::endl;
+	std::cout << "img channel g : " << _img_sub_g.channels() << std::endl;
+	std::cout << "img channel r : " << _img_sub_r.channels() << std::endl;
+	std::cout << "img channel a : " << _img_sub_a.channels() << std::endl;
+	std::cout << "img channel d : " << _img_sub_d.channels() << std::endl;
+	
+	_img_sub_d.convertTo(_img_sub_d, CV_16UC1, 1/_depth_resolution, 0);
+	
+	std::cout << "img type b : " << _img_sub_b.type() << std::endl;
+	std::cout << "img type g : " << _img_sub_g.type() << std::endl;
+	std::cout << "img type r : " << _img_sub_r.type() << std::endl;
+	std::cout << "img type a : " << _img_sub_a.type() << std::endl;
+	std::cout << "img type d : " << _img_sub_d.type() << std::endl;
+
+
+
+	if(is_velodyne_ok){	
+
+		cv::Mat output;
+		
+		std::vector<cv::Mat> _img_combine;
+		_img_combine.push_back(_img_sub_b);
+		_img_combine.push_back(_img_sub_g);
+		_img_combine.push_back(_img_sub_r);
+		_img_combine.push_back(_img_sub_d);
+		// _img_combine.push_back(_img_sub_a);
+		cv::merge(_img_combine, output);
+
+		std::cout << "output size : " << output.size() << std::endl;
+		std::cout << "output channels : " << output.channels() << std::endl;
+		std::cout << "output type : " << output.type() << std::endl;
+
+		// cv::merge(std::vector<cv::Mat>{_img_sub_g, _img_sub_r, _img_sub_b, _img_sub_d, _img_sub_a}, _img_pub_rgbd);
+		
+		sensor_msgs::ImagePtr img_ros_rgbd = cv_bridge::CvImage(msg->header, "rgbd16", output).toImageMsg();
+		_pub_img_rgbd.publish(img_ros_rgbd);
+		is_velodyne_ok = false;	
+		ROS_INFO("publish rgbd image");	
+	}
+
 }
 
 void VelodynePointcloudToDepthimage::generate_RGBD()
 {
-	if(is_velodyne_ok && is_rgb_ok){	
-		// cv::merge(std::vector<cv::Mat>{_img_sub_g, _img_sub_r, _img_sub_b, _img_sub_a}, _img_pub_rgbd);
-	}
+
 }
 
+void VelodynePointcloudToDepthimage::process()
+{
+	ros::Rate loop_rate(10);
+	while(ros::ok()){
+		// generate_RGBD();
+		ros::spinOnce();
+		loop_rate.sleep();
+	}
+
+}
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "velodyne_pointcloud_to_depthimage");
 	
 	VelodynePointcloudToDepthimage velodyne_pointcloud_to_depthimage;
+	velodyne_pointcloud_to_depthimage.process();
 
 	ros::spin();
 }
