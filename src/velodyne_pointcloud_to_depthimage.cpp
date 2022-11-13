@@ -340,27 +340,24 @@ void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedIm
 		ROS_ERROR("cv_bridge exception: %s", e.what());
 	}
 
-	std::cout << "img size b : " << _img_sub_b.size() << std::endl;
-	std::cout << "img size g : " << _img_sub_g.size() << std::endl;
-	std::cout << "img size r : " << _img_sub_r.size() << std::endl;
-	std::cout << "img size a : " << _img_sub_a.size() << std::endl;
-	std::cout << "img size d : " << _img_sub_d.size() << std::endl;
+	// std::cout << "img size b : " << _img_sub_b.size() << std::endl;
+	// std::cout << "img size g : " << _img_sub_g.size() << std::endl;
+	// std::cout << "img size r : " << _img_sub_r.size() << std::endl;
+	// std::cout << "img size a : " << _img_sub_a.size() << std::endl;
+	// std::cout << "img size d : " << _img_sub_d.size() << std::endl;
 
-	std::cout << "img channel b : " << _img_sub_b.channels() << std::endl;
-	std::cout << "img channel g : " << _img_sub_g.channels() << std::endl;
-	std::cout << "img channel r : " << _img_sub_r.channels() << std::endl;
-	std::cout << "img channel a : " << _img_sub_a.channels() << std::endl;
-	std::cout << "img channel d : " << _img_sub_d.channels() << std::endl;
+	// std::cout << "img channel b : " << _img_sub_b.channels() << std::endl;
+	// std::cout << "img channel g : " << _img_sub_g.channels() << std::endl;
+	// std::cout << "img channel r : " << _img_sub_r.channels() << std::endl;
+	// std::cout << "img channel a : " << _img_sub_a.channels() << std::endl;
 	
+	// std::cout << "img type b : " << _img_sub_b.type() << std::endl;
+	// std::cout << "img type g : " << _img_sub_g.type() << std::endl;
+	// std::cout << "img type r : " << _img_sub_r.type() << std::endl;
+	// std::cout << "img type a : " << _img_sub_a.type() << std::endl;
+	// std::cout << "img type d : " << _img_sub_d.type() << std::endl;
+
 	_img_sub_d.convertTo(_img_sub_d, CV_16UC1, 1/_depth_resolution, 0);
-	
-	std::cout << "img type b : " << _img_sub_b.type() << std::endl;
-	std::cout << "img type g : " << _img_sub_g.type() << std::endl;
-	std::cout << "img type r : " << _img_sub_r.type() << std::endl;
-	std::cout << "img type a : " << _img_sub_a.type() << std::endl;
-	std::cout << "img type d : " << _img_sub_d.type() << std::endl;
-
-
 
 	if(is_velodyne_ok){	
 
@@ -371,7 +368,7 @@ void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedIm
 		_img_combine.push_back(_img_sub_g);
 		_img_combine.push_back(_img_sub_r);
 		_img_combine.push_back(_img_sub_d);
-		// _img_combine.push_back(_img_sub_a);
+		_img_combine.push_back(_img_sub_a);
 		cv::merge(_img_combine, output);
 
 		std::cout << "output size : " << output.size() << std::endl;
@@ -380,7 +377,7 @@ void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedIm
 
 		// cv::merge(std::vector<cv::Mat>{_img_sub_g, _img_sub_r, _img_sub_b, _img_sub_d, _img_sub_a}, _img_pub_rgbd);
 		
-		sensor_msgs::ImagePtr img_ros_rgbd = cv_bridge::CvImage(msg->header, "rgbd16", output).toImageMsg();
+		sensor_msgs::ImagePtr img_ros_rgbd = cv_bridge::CvImage(msg->header, "rgbda16", output).toImageMsg();
 		_pub_img_rgbd.publish(img_ros_rgbd);
 		is_velodyne_ok = false;	
 		ROS_INFO("publish rgbd image");	
