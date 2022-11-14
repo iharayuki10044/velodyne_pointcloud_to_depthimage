@@ -62,6 +62,9 @@ class VelodynePointcloudToDepthimage
 
 		bool is_velodyne_ok = false;
 		bool is_rgb_ok = false;
+		bool is_depthimage_show = false;
+		int depthimage_show_rate = 1;
+
 
 	public:
 		VelodynePointcloudToDepthimage();
@@ -85,23 +88,28 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	std::cout << "--- velodyne_pointcloud_to_depthimage ---" << std::endl;
 	/*parameter*/
 	_nhPrivate.param("num_ring", _num_ring, 32);
-	std::cout << "_num_ring = " << _num_ring << std::endl;
 	_nhPrivate.param("points_per_ring", _points_per_ring, 1092);
-	std::cout << "_points_per_ring = " << _points_per_ring << std::endl;
 	_nhPrivate.param("depth_resolution", _depth_resolution, 0.01);
-	std::cout << "_depth_resolution = " << _depth_resolution << std::endl;
 	_nhPrivate.param("max_range", _max_range, 100.0);
-	std::cout << "_max_range = " << _max_range << std::endl;
 	_nhPrivate.param("save_limit", _save_limit, -1);
-	std::cout << "_save_limit = " << _save_limit << std::endl;
-
 	_nhPrivate.param("field_of_view", _field_of_view, 90.0);
-	std::cout << "_field_of_view = " << _field_of_view << std::endl;
-
 	_nhPrivate.param("save_root_path", _save_root_path, std::string("saved"));
-	std::cout << "_save_root_path = " << _save_root_path << std::endl;
 	_nhPrivate.param("save_img_name", _save_img_name, std::string("depth_"));
+	_nhPrivate.param("is_depthimage_show", is_depthimage_show, false);
+	_nhPrivate.param("depthimage_show_rate", depthimage_show_rate, 1);
+
+	std::cout << "_num_ring = " << _num_ring << std::endl;
+	std::cout << "_points_per_ring = " << _points_per_ring << std::endl;
+	std::cout << "_depth_resolution = " << _depth_resolution << std::endl;
+	std::cout << "_max_range = " << _max_range << std::endl;
+	std::cout << "_save_limit = " << _save_limit << std::endl;
+	std::cout << "_field_of_view = " << _field_of_view << std::endl;
+	std::cout << "_save_root_path = " << _save_root_path << std::endl;
 	std::cout << "_save_img_name = " << _save_img_name << std::endl;
+	std::cout << "is_depthimage_show = " << is_depthimage_show << std::endl;
+	std::cout << "depthimage_show_rate = " << depthimage_show_rate << std::endl;
+
+
 
 	is_velodyne_ok = false;
 	is_rgb_ok = false;

@@ -25,5 +25,8 @@
 		<!-- <param name="save_limit" type="int" value="10"/> -->
 		<param name="save_root_path" type="string" value="$(find velodyne_pointcloud_to_depthimage)/saved/tmp"/>
 		<!-- <param name="save_img_name" type="string" value="depth_"/> -->
+        <param name="is_depthimage_show" type="bool" value="true"/>
+        <param name="depthimage_show_rate" type="int" value="1"/>
+	
 	</node>
 </launch>
