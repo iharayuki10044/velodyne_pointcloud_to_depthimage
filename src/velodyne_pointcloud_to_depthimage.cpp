@@ -307,8 +307,8 @@ void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedIm
 		// std::cout << "rgb image depth : " << _img_sub_rgb.depth() << std::endl;
 		// std::cout << "rgb image at 0,0 : " << (int)_img_sub_rgb.at<unsigned char>(0, 0) << std::endl;
 
-		cv::Mat output;
-		output = cv::Mat(_img_sub_rgb, cv::Rect(240, 120, 120, 240));
+		// cv::Mat output;
+		// output = cv::Mat(_img_sub_rgb, cv::Rect(240, 120, 120, 240));
 
 		// _save_counter++;
 		// if(_save_counter %20 == 1){
@@ -335,7 +335,6 @@ void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedIm
 		_img_sub_r = _img_sub_rgb_channels[1];
 		_img_sub_b = _img_sub_rgb_channels[2];
 		_img_sub_a = _img_sub_rgb_channels[3];
-
 
 		std::cout << "chnanel num : " << _img_sub_rgb_channels.size() << std::endl;
 
@@ -390,11 +389,6 @@ void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedIm
 		is_velodyne_ok = false;	
 		ROS_INFO("publish rgbd image");	
 	}
-
-}
-
-void VelodynePointcloudToDepthimage::generate_RGBD()
-{
 
 }
 
