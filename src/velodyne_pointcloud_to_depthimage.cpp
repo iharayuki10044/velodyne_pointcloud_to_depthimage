@@ -138,20 +138,25 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	// width height channel 
 	// _img_pub_rgbd = cv::Mat::zeros(720, 1280, CV_8UC4);
 
-	_cliped_points_x =  1092 * (180 - _field_of_view/2) /360.0; 
-	_cliped_width = 1092 * _field_of_view /360.0;
+	_cliped_points_x =  _points_per_ring * (180 - _field_of_view/2) /360.0; 
+	_cliped_width = _points_per_ring * _field_of_view /360.0;
 
 }
 
 void VelodynePointcloudToDepthimage::callbackPC(const sensor_msgs::PointCloud2ConstPtr &msg)
 {
+	std::cout << "input pc num = " << msg->width << std::endl;
+	std::cout << "input pc num = " << msg->height << std::endl;
+	std::cout << "_nui_ring = " << _num_ring << std::endl;
+	std::cout << "per ring num = " << msg->width / _num_ring << std::endl;
+
 	for(size_t i=0 ; i<_rings.size() ; ++i){
 		_rings[i]->points.clear();
 	}
-	pcToRings(*msg);
-	ringsToImage();
+	// pcToRings(*msg);
+	// ringsToImage();
 	// clipped_depthimage();
-	publication(msg->header);
+	// publication(msg->header);
 }
 
 void VelodynePointcloudToDepthimage::pcToRings(const sensor_msgs::PointCloud2& pc_msg)
@@ -177,6 +182,9 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 	/*reset*/
 	// _img_cv_64f = cv::Mat::zeros(_num_ring, _points_per_ring, CV_64FC1);
 	_img_cv_64f = cv::Mat(_num_ring, _points_per_ring, CV_64FC1, cv::Scalar(-1));
+
+	_img_cv_8u = cv::Mat(_num_ring, _points_per_ring, CV_8UC1, cv::Scalar(0));
+
 	/*input*/
 	double angle_resolution = 2*M_PI/(double)_points_per_ring;
 	for(size_t i=0 ; i<_rings.size() ; ++i){
@@ -184,14 +192,22 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 		for(size_t j=0 ; j<_rings[i]->points.size() ; ++j){
 			double angle = atan2(_rings[i]->points[j].y, _rings[i]->points[j].x);
 			int col = _points_per_ring - (int)((angle + M_PI)/angle_resolution) - 1;
-			if(std::isnan(_rings[i]->points[j].x) || std::isnan(_rings[i]->points[j].y))    continue;
-			_img_cv_64f.at<double>(row, col) = sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y);
+
+			if(std::isnan(_rings[i]->points[j].x) || std::isnan(_rings[i]->points[j].y)){	
+				// _img_cv_64f.at<double>(row, col) = sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y);
+				int pic = 255/sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y);
+				_img_cv_8u.at<u_char>(row, col) = (u_char) 0;	
+			}
+			else{
+				// _img_cv_64f.at<double>(row, col) = _max_range;
+				_img_cv_8u.at<u_char>(row, col) = (u_char) 255;
+			}
 		}
 	}
 	/*convert*/
-	_img_cv_64f.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
-	_img_cv_64f.convertTo(_img_cv_8u, CV_8UC1, 255/_max_range, 0);
-	
+	// _img_cv_64f.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
+	// _img_cv_64f.convertTo(_img_cv_8u, CV_8UC1, 255/_max_range, 0);
+
 	// std::cout << "------------------" << std::endl;
 	// std::cout << "image size 64 " << _img_cv_64f.size() << std::endl;
 	// std::cout << "image type " << _img_cv_64f.type() << std::endl;
@@ -207,7 +223,7 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 	// std::cout << "clip width : " << _cliped_width << std::endl;
 
 	cv::Mat output;
-	output = cv::Mat(_img_cv_8u, cv::Rect(_cliped_points_x, 0, _cliped_width, 32));
+	output = cv::Mat(_img_cv_8u, cv::Rect(_cliped_points_x, 0, _cliped_width, _num_ring));
 
 	cv::resize(output, _img_sub_d, cv::Size(1280, 720), 0, 0, cv::INTER_NEAREST);
 
@@ -216,7 +232,7 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 	// std::cout << "------------------" << std::endl;
 
 	_save_counter++;
-	if(_save_counter % 10 == 0){
+	if(_save_counter % depthimage_show_rate == 0){
 		std::string filename = "/home/amsl/rgbd_test/front_depth_" + std::to_string(_save_counter) + ".png";
 		std::string filename_resize = "/home/amsl/rgbd_test/front_depth_resize" + std::to_string(_save_counter) + ".png";
 		cv::imwrite(filename, output);

@@ -5,7 +5,8 @@
 	<param name="use_sim_time" value="true"/>
 
 	<!-- rosbag -->
-	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/bagfiles/infant/2021-08-01-18-20-44.bag"/>
+	<!-- <node pkg="rosbag" type="play" name="player" args="clock /home/amsl/bagfiles/infant/2021-08-01-18-20-44.bag"/> -->
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/bagfiles/vtc/vtc_dwa_test_2022-11-15-14-40-06.bag"/>
 	<!-- <node pkg="rosbag" type="play" name="player" args="clock /share/share/RWRC/rwrc21_dl/bagfiles/vtc/2022-01-17-20-58-33.bag -l"/> -->
 
 	<!-- rviz -->
@@ -17,9 +18,15 @@
 
 	<!-- main -->
 	<node pkg="velodyne_pointcloud_to_depthimage" name="velodyne_pointcloud_to_depthimage" type="velodyne_pointcloud_to_depthimage" output="screen">
-		<!-- <param name="num_ring" type="int" value="32"/> -->
-		<!-- <param name="points_per_ring" type="int" value="1092"/> <!&#45;&#45; HDL&#38;#45;32E &#45;&#45;> -->
-		<!-- <param name="points_per_ring" type="int" value="1812"/>	<!&#45;&#45; VLP&#38;#45;32C &#45;&#45;> -->
+		<!-- <!&#45;&#45; HDL&#38;#45;32E &#45;&#45;> -->
+		<!-- <param name="num_ring" type="int" value="32"/>
+		<param name="points_per_ring" type="int" value="1092"/> 
+		<param name="points_per_ring" type="int" value="1812"/>	<!&#45;&#45; VLP&#38;#45;32C &#45;&#45;> -->
+		
+		<!-- <in vtc>	 -->
+		<param name="num_ring" type="int" value="16"/>
+		<param name="points_per_ring" type="int" value="720"/>
+
 		<!-- <param name="depth_resolution" type="double" value="0.01"/> -->
 		<!-- <param name="max_range" type="double" value="100.0"/> -->
 		<!-- <param name="save_limit" type="int" value="10"/> -->
