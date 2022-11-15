@@ -75,7 +75,6 @@ class VelodynePointcloudToDepthimage
 		void pcToRings(const sensor_msgs::PointCloud2& pc_msg);
 		void ringsToImage(void);
 		void publication(std_msgs::Header header);
-		void clipped_depthimage();
 
 		void process();
 		void generate_RGBD();
@@ -155,7 +154,6 @@ void VelodynePointcloudToDepthimage::callbackPC(const sensor_msgs::PointCloud2Co
 	}
 	// pcToRings(*msg);
 	// ringsToImage();
-	// clipped_depthimage();
 	// publication(msg->header);
 }
 
