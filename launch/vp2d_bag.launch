@@ -17,11 +17,11 @@
 	<!-- <include file="$(find velodyne_pointcloud)/launch/VLP&#45;32C_points.launch"/> -->
 
 	<!-- main -->
-	<node pkg="velodyne_pointcloud_to_depthimage" name="velodyne_pointcloud_to_depthimage" type="velodyne_pointcloud_to_depthimage" output="screen">
+	<node pkg="velodyne_pointcloud_to_depthimage" name="velodyne_pointcloud_to_depthimage" type="velodyne_pointcloud_to_depthimage" output="screen" launch-prefix="gnome-terminal -x gdb --args">
 		<!-- <!&#45;&#45; HDL&#38;#45;32E &#45;&#45;> -->
 		<!-- <param name="num_ring" type="int" value="32"/>
-		<param name="points_per_ring" type="int" value="1092"/> 
-		<param name="points_per_ring" type="int" value="1812"/>	<!&#45;&#45; VLP&#38;#45;32C &#45;&#45;> -->
+		<param name="points_per_ring" type="int" value="1092"/>  -->
+		<!-- <param name="points_per_ring" type="int" value="1812"/>	<!&#45;&#45; VLP&#38;#45;32C &#45;&#45;> -->
 		
 		<!-- <in vtc>	 -->
 		<param name="num_ring" type="int" value="16"/>

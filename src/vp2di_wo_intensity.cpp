@@ -16,7 +16,6 @@ class VelodynePointcloudToDepthimage
 		ros::NodeHandle _nhPrivate;
 		/*subscriber*/
 		ros::Subscriber _sub_pc;
-
 		ros::Subscriber _sub_rgb;
 
 		/*publisher*/
@@ -38,11 +37,9 @@ class VelodynePointcloudToDepthimage
 		cv::Mat _img_sub_g;
 		cv::Mat _img_sub_b;
 		cv::Mat _img_sub_a;
-
 		cv::Mat _img_sub_d;
 
 		/*point cloud*/
-		std::vector<pcl::PointCloud<pcl::PointXYZI>::Ptr> _rings;
 		std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> _rings_wo_intensity;
 		/*counter*/
 		int _save_counter = 0;
@@ -73,9 +70,7 @@ class VelodynePointcloudToDepthimage
 
 		void callbackRGB(const sensor_msgs::CompressedImageConstPtr& msg);
 
-		void pcToRings(const sensor_msgs::PointCloud2& pc_msg);
 		void pcToRings_wo_intensity(const sensor_msgs::PointCloud2& pc_msg);	
-		void ringsToImage(void);
 		void ringsToImage_wo_intensity(void);
 		void publication(std_msgs::Header header);
 
@@ -111,8 +106,6 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	std::cout << "is_depthimage_show = " << is_depthimage_show << std::endl;
 	std::cout << "depthimage_show_rate = " << depthimage_show_rate << std::endl;
 
-
-
 	is_velodyne_ok = false;
 	is_rgb_ok = false;
 
@@ -131,12 +124,6 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	_pub_img_rgbd = _nh.advertise<sensor_msgs::Image>("/depth_image/rgbd", 1);
 
 	/*initialize*/
-	_rings.resize(_num_ring);
-	for(size_t i=0 ; i<_rings.size() ; ++i){
-		pcl::PointCloud<pcl::PointXYZI>::Ptr tmp (new pcl::PointCloud<pcl::PointXYZI>);
-		_rings[i] = tmp;
-	}
-
 	_rings_wo_intensity.resize(_num_ring);
 	for(size_t i=0 ; i<_rings_wo_intensity.size() ; ++i){
 		pcl::PointCloud<pcl::PointXYZ>::Ptr tmp (new pcl::PointCloud<pcl::PointXYZ>);
@@ -158,43 +145,22 @@ void VelodynePointcloudToDepthimage::callbackPC(const sensor_msgs::PointCloud2Co
 	std::cout << "_num_ring = " << _num_ring << std::endl;
 	std::cout << "per ring num = " << msg->width / _num_ring << std::endl;
 
-	for(size_t i=0 ; i<_rings.size() ; ++i){
-		_rings[i]->points.clear();
+	for(size_t i=0 ; i<_rings_wo_intensity.size() ; ++i){
+		_rings_wo_intensity[i]->points.clear();
 	}
-	pcToRings(*msg);
-	ringsToImage();
+	pcToRings_wo_intensity(*msg);
+	ringsToImage_wo_intensity();
 	publication(msg->header);
-}
-
-void VelodynePointcloudToDepthimage::pcToRings(const sensor_msgs::PointCloud2& pc_msg)
-{
-	sensor_msgs::PointCloud2ConstIterator<uint16_t> iter_ring(pc_msg,"ring");
-	sensor_msgs::PointCloud2ConstIterator<float> iter_x(pc_msg,"x");
-	sensor_msgs::PointCloud2ConstIterator<float> iter_y(pc_msg,"y");
-	sensor_msgs::PointCloud2ConstIterator<float> iter_z(pc_msg,"z");
-	sensor_msgs::PointCloud2ConstIterator<float> iter_intensity(pc_msg,"intensity");
-
-	for( ; iter_ring!=iter_ring.end() ; ++iter_ring, ++iter_x, ++iter_y, ++iter_z, ++iter_intensity){
-		pcl::PointXYZI tmp;
-		tmp.x = *iter_x;
-		tmp.y = *iter_y;
-		tmp.z = *iter_z;
-		tmp.intensity = *iter_intensity;
-		_rings[*iter_ring]->points.push_back(tmp);
-	}
 }
 
 void VelodynePointcloudToDepthimage::pcToRings_wo_intensity(const sensor_msgs::PointCloud2& pc_msg)
 {
-	std::cout << "pcToRings" << std::endl;
-	std::cout << "msg type : " << pc_msg.fields[0].name << std::endl;
-
 	sensor_msgs::PointCloud2ConstIterator<uint16_t> iter_ring(pc_msg,"ring");
 	sensor_msgs::PointCloud2ConstIterator<float> iter_x(pc_msg,"x");
 	sensor_msgs::PointCloud2ConstIterator<float> iter_y(pc_msg,"y");
 	sensor_msgs::PointCloud2ConstIterator<float> iter_z(pc_msg,"z");
 
-	for( ; iter_ring!=iter_ring.end() ; ++iter_ring, ++iter_x, ++iter_y, ++iter_z){
+	for( ; iter_ring!=iter_ring.end() ; ++iter_ring, ++iter_x, ++iter_y, ++iter_z ){
 		pcl::PointXYZ tmp;
 		tmp.x = *iter_x;
 		tmp.y = *iter_y;
@@ -203,7 +169,7 @@ void VelodynePointcloudToDepthimage::pcToRings_wo_intensity(const sensor_msgs::P
 	}
 }
 
-void VelodynePointcloudToDepthimage::ringsToImage(void)
+void VelodynePointcloudToDepthimage::ringsToImage_wo_intensity()
 {
 	/*reset*/
 	// _img_cv_64f = cv::Mat::zeros(_num_ring, _points_per_ring, CV_64FC1);
@@ -215,19 +181,19 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 	/*input*/
 	double angle_resolution = 2*M_PI/(double)_points_per_ring;
 
-	std::cout << "ring seize : " << _rings.size() << std::endl;
-	std::cout << "col size : " << _rings[0]->size() << std::endl;
+	std::cout << "ring seize : " << _rings_wo_intensity.size() << std::endl;
+	std::cout << "col size : " << _rings_wo_intensity[0]->size() << std::endl;
 
-	for(size_t i=0 ; i<_rings.size() ; ++i){
-		int row = (int)_rings.size() - i - 1;
-		for(size_t j=0 ; j<_rings[i]->points.size() ; ++j){
+	for(size_t i=0 ; i<_rings_wo_intensity.size() ; ++i){
+		int row = (int)_rings_wo_intensity.size() - i - 1;
+		for(size_t j=0 ; j<_rings_wo_intensity[i]->points.size() ; ++j){
 
-			if((std::isnan(_rings[i]->points[j].x) || std::isnan(_rings[i]->points[j].y)) == true){
+			if((std::isnan(_rings_wo_intensity[i]->points[j].x) || std::isnan(_rings_wo_intensity[i]->points[j].y)) == true){
 				break;
 			}else{
-				double angle = atan2(_rings[i]->points[j].y, _rings[i]->points[j].x);
+				double angle = atan2(_rings_wo_intensity[i]->points[j].y, _rings_wo_intensity[i]->points[j].x);
 				int col = _points_per_ring - (int)((angle + M_PI)/angle_resolution) - 1;
-				_img_cv_64f.at<double>(row, col) = sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y);
+				_img_cv_64f.at<double>(row, col) = sqrt(_rings_wo_intensity[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y);
 			}
 			
 		}
@@ -312,78 +278,6 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 		// }
 	}
 }
-
-void VelodynePointcloudToDepthimage::ringsToImage_wo_intensity(void)
-{
-	/*reset*/
-	// _img_cv_64f = cv::Mat::zeros(_num_ring, _points_per_ring, CV_64FC1);
-	_img_cv_64f = cv::Mat(_num_ring, _points_per_ring, CV_64FC1, cv::Scalar(-1));
-	// _img_cv_64f = cv::Mat(_num_ring, _points_per_ring, CV_64FC1, cv::Scalar(1.797693134862315e+308));
-
-	_img_cv_8u = cv::Mat(_num_ring, _points_per_ring, CV_8UC1, cv::Scalar(255));
-
-	/*input*/
-	double angle_resolution = 2*M_PI/(double)_points_per_ring;
-
-	std::cout << "ring seize : " << _rings_wo_intensity.size() << std::endl;
-	std::cout << "col size : " << _rings_wo_intensity[0]->size() << std::endl;
-
-	for(size_t i=0 ; i<_rings_wo_intensity.size() ; ++i){
-		int row = (int)_rings_wo_intensity.size() - i - 1;
-		for(size_t j=0 ; j<_rings_wo_intensity[i]->points.size() ; ++j){
-
-			if((std::isnan(_rings_wo_intensity[i]->points[j].x) || std::isnan(_rings_wo_intensity[i]->points[j].y)) == true){
-				break;
-			}else{
-				double angle = atan2(_rings_wo_intensity[i]->points[j].y, _rings_wo_intensity[i]->points[j].x);
-				int col = _points_per_ring - (int)((angle + M_PI)/angle_resolution) - 1;
-				_img_cv_64f.at<double>(row, col) = sqrt(_rings_wo_intensity[i]->points[j].x *_rings_wo_intensity[i]->points[j].x + _rings_wo_intensity[i]->points[j].y*_rings_wo_intensity[i]->points[j].y);
-			}
-			
-		}
-	}
-	/*convert*/
-	_img_cv_64f.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
-	_img_cv_64f.convertTo(_img_cv_8u, CV_8UC1, 255/_max_range, 0);
-
-	// std::cout << "------------------" << std::endl;
-	// std::cout << "image size 64 " << _img_cv_64f.size() << std::endl;
-	// std::cout << "image type " << _img_cv_64f.type() << std::endl;
-	// std::cout << "image size 16 " << _img_cv_16u.size() << std::endl;
-	// std::cout << "image type " << _img_cv_16u.type() << std::endl;
-
-	// std::cout << "image size 8 " << _img_cv_8u.size() << std::endl;
-	// std::cout << "image type " << _img_cv_8u.type() << std::endl;
-	// _img_cv_8u.resize(720, 1280);
-	// std::cout << "image big size 8 " << _img_cv_8u.size() << std::endl;
-
-	// std::cout << "clip x : " << _cliped_points_x << std::endl;
-	// std::cout << "clip width : " << _cliped_width << std::endl;
-
-	cv::Mat output;
-	output = cv::Mat(_img_cv_8u, cv::Rect(_cliped_points_x, 0, _cliped_width, _num_ring));
-	cv::resize(output, _img_sub_d, cv::Size(1280, 720), 0, 0, cv::INTER_NEAREST);
-
-	// std::cout << "img resize size : " << _img_sub_d.size() << std::endl;
-	// std::cout << "------------------" << std::endl;
-
-	_save_counter++;
-	if(_save_counter % depthimage_show_rate == 0){
-		std::string filename = "/home/amsl/rgbd_test/front_depth_" + std::to_string(_save_counter) + ".png";
-		std::string filename_resize = "/home/amsl/rgbd_test/front_depth_resize" + std::to_string(_save_counter) + ".png";
-		cv::imwrite(filename, output);
-		cv::imwrite(filename_resize, _img_sub_d);	
-		cv::imshow("depth_moto", output);
-		cv::imshow("depth_resize", _img_sub_d);
-		cv::waitKey(2000);
-
-	}
-
-	is_velodyne_ok = true;
-
-
-}
-
 
 void VelodynePointcloudToDepthimage::publication(std_msgs::Header header)
 {
@@ -521,7 +415,7 @@ void VelodynePointcloudToDepthimage::process()
 }
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "velodyne_pointcloud_to_depthimage");
+    ros::init(argc, argv, "velodyne_pointcloud_to_depthimage wo intensity");
 	
 	VelodynePointcloudToDepthimage velodyne_pointcloud_to_depthimage;
 	velodyne_pointcloud_to_depthimage.process();

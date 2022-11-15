@@ -195,3 +195,6 @@ include_directories(
 # catkin_add_nosetests(test)
 add_executable(velodyne_pointcloud_to_depthimage src/velodyne_pointcloud_to_depthimage.cpp)
 target_link_libraries(velodyne_pointcloud_to_depthimage ${catkin_LIBRARIES})
+
+add_executable(velodyne_pointcloud_to_depthimage_wo_intensity src/vp2di_wo_intensity.cpp)
+target_link_libraries(velodyne_pointcloud_to_depthimage_wo_intensity ${catkin_LIBRARIES})
