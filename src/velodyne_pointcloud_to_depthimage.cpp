@@ -63,8 +63,11 @@ class VelodynePointcloudToDepthimage
 		bool is_velodyne_ok = false;
 		bool is_rgb_ok = false;
 		bool is_depthimage_show = false;
+		bool is_depthimage_save = false;
 		int depthimage_show_rate = 1;
 
+		int pub_rgbd_width = 0;
+		int pub_rgbd_height = 0;
 
 	public:
 		VelodynePointcloudToDepthimage();
@@ -95,7 +98,11 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	_nhPrivate.param("save_root_path", _save_root_path, std::string("saved"));
 	_nhPrivate.param("save_img_name", _save_img_name, std::string("depth_"));
 	_nhPrivate.param("is_depthimage_show", is_depthimage_show, false);
+	_nhPrivate.param("is_depthimage_save", is_depthimage_save, false);	
 	_nhPrivate.param("depthimage_show_rate", depthimage_show_rate, 1);
+	_nhPrivate.param("pub_rgbd_width", pub_rgbd_width, 1280);
+	_nhPrivate.param("pub_rgbd_height", pub_rgbd_height, 720);
+
 
 	std::cout << "_num_ring = " << _num_ring << std::endl;
 	std::cout << "_points_per_ring = " << _points_per_ring << std::endl;
@@ -106,6 +113,7 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	std::cout << "_save_root_path = " << _save_root_path << std::endl;
 	std::cout << "_save_img_name = " << _save_img_name << std::endl;
 	std::cout << "is_depthimage_show = " << is_depthimage_show << std::endl;
+	std::cout << "is_depthimage_save = " << is_depthimage_save << std::endl;
 	std::cout << "depthimage_show_rate = " << depthimage_show_rate << std::endl;
 
 
@@ -124,7 +132,6 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	_pub_img_8u = _nh.advertise<sensor_msgs::Image>("/depth_image/8uc1", 1);
 
 	_pub_img_front = _nh.advertise<sensor_msgs::Image>("/depth_image/front", 1);
-
 	_pub_img_rgbd = _nh.advertise<sensor_msgs::Image>("/depth_image/rgbd", 1);
 
 	/*initialize*/
@@ -201,13 +208,14 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 				double angle = atan2(_rings[i]->points[j].y, _rings[i]->points[j].x);
 				int col = _points_per_ring - (int)((angle + M_PI)/angle_resolution) - 1;
 				_img_cv_64f.at<double>(row, col) = sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y);
+				_img_cv_8u.at<u_int8_t> (row, col) = (u_int8_t)(sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y));
 			}
 			
 		}
 	}
 	/*convert*/
 	_img_cv_64f.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
-	_img_cv_64f.convertTo(_img_cv_8u, CV_8UC1, 255/_max_range, 0);
+	// _img_cv_64f.convertTo(_img_cv_8u, CV_8UC1, 255/_max_range, 0);
 
 	// std::cout << "------------------" << std::endl;
 	// std::cout << "image size 64 " << _img_cv_64f.size() << std::endl;
@@ -225,15 +233,14 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 
 	cv::Mat output;
 	output = cv::Mat(_img_cv_8u, cv::Rect(_cliped_points_x, 0, _cliped_width, _num_ring));
-
-	cv::resize(output, _img_sub_d, cv::Size(1280, 720), 0, 0, cv::INTER_NEAREST);
+	cv::resize(output, _img_sub_d, cv::Size(pub_rgbd_width, pub_rgbd_width), 0, 0, cv::INTER_NEAREST);
 
 	// std::cout << "img resize size : " << _img_sub_d.size() << std::endl;
 
 	// std::cout << "------------------" << std::endl;
 
 	_save_counter++;
-	if(_save_counter % depthimage_show_rate == 0){
+	if((_save_counter % depthimage_show_rate == 0)&&(is_depthimage_show)){
 		std::string filename = "/home/amsl/rgbd_test/front_depth_" + std::to_string(_save_counter) + ".png";
 		std::string filename_resize = "/home/amsl/rgbd_test/front_depth_resize" + std::to_string(_save_counter) + ".png";
 		cv::imwrite(filename, output);
@@ -354,10 +361,9 @@ void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedIm
 		_img_sub_b = _img_sub_rgb_channels[2];
 		_img_sub_a = _img_sub_rgb_channels[3];
 
-		std::cout << "chnanel num : " << _img_sub_rgb_channels.size() << std::endl;
-
-		std::cout << "converted rgbD image size : " << _img_pub_rgbd.size() << std::endl;
-		std::cout << "converted rgbD image channels : " << _img_pub_rgbd.channels() << std::endl;
+		// std::cout << "chnanel num : " << _img_sub_rgb_channels.size() << std::endl;
+		// std::cout << "converted rgbD image size : " << _img_pub_rgbd.size() << std::endl;
+		// std::cout << "converted rgbD image channels : " << _img_pub_rgbd.channels() << std::endl;
 
 		is_rgb_ok = true;	
 	}	
