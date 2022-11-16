@@ -12,6 +12,7 @@
 	<!-- main -->
 	<node pkg="velodyne_pointcloud_to_depthimage" name="velodyne_pointcloud_to_depthimage" type="velodyne_pointcloud_to_depthimage" output="screen">
 		<param name="num_ring" type="int" value="16"/>
+		<param name="points_per_ring" type="int" value="720"/>
 		<!-- <param name="points_per_ring" type="int" value="1092"/> <!&#45;&#45; HDL&#38;#45;32E &#45;&#45;> -->
 		<!-- <param name="points_per_ring" type="int" value="1812"/>	<!&#45;&#45; VLP&#38;#45;32C &#45;&#45;> -->
 		<!-- <param name="depth_resolution" type="double" value="0.01"/> -->
