@@ -80,7 +80,6 @@ class VelodynePointcloudToDepthimage
 		void publication(std_msgs::Header header);
 
 		void process();
-		void generate_RGBD();
 
 };
 
@@ -103,7 +102,6 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	_nhPrivate.param("pub_rgbd_width", pub_rgbd_width, 1280);
 	_nhPrivate.param("pub_rgbd_height", pub_rgbd_height, 720);
 
-
 	std::cout << "_num_ring = " << _num_ring << std::endl;
 	std::cout << "_points_per_ring = " << _points_per_ring << std::endl;
 	std::cout << "_depth_resolution = " << _depth_resolution << std::endl;
@@ -115,8 +113,6 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	std::cout << "is_depthimage_show = " << is_depthimage_show << std::endl;
 	std::cout << "is_depthimage_save = " << is_depthimage_save << std::endl;
 	std::cout << "depthimage_show_rate = " << depthimage_show_rate << std::endl;
-
-
 
 	is_velodyne_ok = false;
 	is_rgb_ok = false;
@@ -151,10 +147,6 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 
 void VelodynePointcloudToDepthimage::callbackPC(const sensor_msgs::PointCloud2ConstPtr &msg)
 {
-	std::cout << "input pc num = " << msg->width << std::endl;
-	std::cout << "input pc num = " << msg->height << std::endl;
-	std::cout << "_num_ring = " << _num_ring << std::endl;
-	std::cout << "per ring num = " << msg->width / _num_ring << std::endl;
 
 	for(size_t i=0 ; i<_rings.size() ; ++i){
 		_rings[i]->points.clear();
@@ -182,7 +174,6 @@ void VelodynePointcloudToDepthimage::pcToRings(const sensor_msgs::PointCloud2& p
 	}
 }
 
-
 void VelodynePointcloudToDepthimage::ringsToImage(void)
 {
 	/*reset*/
@@ -195,26 +186,53 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 	/*input*/
 	double angle_resolution = 2*M_PI/(double)_points_per_ring;
 
-	std::cout << "ring seize : " << _rings.size() << std::endl;
-	std::cout << "col size : " << _rings[0]->size() << std::endl;
+	// std::cout << "ring seize : " << _rings.size() << std::endl;
+	// std::cout << "col size : " << _rings[0]->size() << std::endl;
 
 	for(size_t i=0 ; i<_rings.size() ; ++i){
 		int row = (int)_rings.size() - i - 1;
+
+		double max_distance = 100000;
+		double pixel;
+		int past_col;
+
 		for(size_t j=0 ; j<_rings[i]->points.size() ; ++j){
 
 			if((std::isnan(_rings[i]->points[j].x) || std::isnan(_rings[i]->points[j].y)) == true){
-				break;
+
+				if( (i+1 <= _rings.size()) && (i-1 >= 0) ){
+					pixel = (pixel + sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y)) /2;
+					_img_cv_8u.at<uint8_t>(row, past_col) = (uint8_t)(pixel);											
+				}
+				else{
+					_img_cv_8u.at<uint8_t>(row, past_col +1) = pixel;
+				}
 			}else{
 				double angle = atan2(_rings[i]->points[j].y, _rings[i]->points[j].x);
 				int col = _points_per_ring - (int)((angle + M_PI)/angle_resolution) - 1;
+				past_col = col;	
 				_img_cv_64f.at<double>(row, col) = sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y);
-				_img_cv_8u.at<u_int8_t> (row, col) = (u_int8_t)(sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y));
+
+				// _img_cv_8u.at<u_int8_t> (row, col) = (u_int8_t)(sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y));
+					
+				pixel = sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y);
+				if(pixel > 255){
+					// std::cout << "infinity" << std::endl;
+					_img_cv_8u.at<uint8_t>(row, col) = 255;
+				}
+				else{
+					_img_cv_8u.at<u_int8_t> (row, col) = (u_int8_t) pixel;
+					pixel = pixel /_max_range *255;
+				}
+				
 			}
-			
 		}
+		if(i == _rings.size() -1){	
+			// std::cout << i << " ban "  << "max distance : " << max_distance << std::endl;
+		}	
 	}
 	/*convert*/
-	_img_cv_64f.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
+	_img_cv_8u.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
 	// _img_cv_64f.convertTo(_img_cv_8u, CV_8UC1, 255/_max_range, 0);
 
 	// std::cout << "------------------" << std::endl;
@@ -233,23 +251,36 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 
 	cv::Mat output;
 	output = cv::Mat(_img_cv_8u, cv::Rect(_cliped_points_x, 0, _cliped_width, _num_ring));
-	cv::resize(output, _img_sub_d, cv::Size(pub_rgbd_width, pub_rgbd_width), 0, 0, cv::INTER_NEAREST);
+
+	// show sub d
+	// for(int i =0; output.rows > i; i++){
+	// 	for(int j=0; output.cols > j; j++){
+	// 		std::cout << (int)output.at<uint8_t>(i, j) << " ";
+	// 	}
+	// 	std::cout << "" <<std::endl;	
+	// }
+
+
+	cv::resize(output, _img_sub_d, cv::Size(pub_rgbd_width, pub_rgbd_height), 0, 0, cv::INTER_NEAREST);
+
 
 	// std::cout << "img resize size : " << _img_sub_d.size() << std::endl;
 
 	// std::cout << "------------------" << std::endl;
 
 	_save_counter++;
-	if((_save_counter % depthimage_show_rate == 0)&&(is_depthimage_show)){
+	if((_save_counter % depthimage_show_rate == 0)&&(is_depthimage_save)){
 		std::string filename = "/home/amsl/rgbd_test/front_depth_" + std::to_string(_save_counter) + ".png";
 		std::string filename_resize = "/home/amsl/rgbd_test/front_depth_resize" + std::to_string(_save_counter) + ".png";
 		cv::imwrite(filename, output);
-		cv::imwrite(filename_resize, _img_sub_d);	
+	}
+
+	if((_save_counter % depthimage_show_rate == 0)&&(is_depthimage_show)){
 		cv::imshow("depth_moto", output);
 		cv::imshow("depth_resize", _img_sub_d);
 		cv::waitKey(2000);
-
 	}
+
 
 	is_velodyne_ok = true;
 
@@ -293,16 +324,16 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 	}
 }
 
-
 void VelodynePointcloudToDepthimage::publication(std_msgs::Header header)
 {
 	sensor_msgs::ImagePtr img_ros_64f = cv_bridge::CvImage(header, "64FC1", _img_cv_64f).toImageMsg();
 	sensor_msgs::ImagePtr img_ros_16u = cv_bridge::CvImage(header, "mono16", _img_cv_16u).toImageMsg();
 	sensor_msgs::ImagePtr img_ros_8u = cv_bridge::CvImage(header, "mono8", _img_cv_8u).toImageMsg();
-	sensor_msgs::ImagePtr img_ros_front = cv_bridge::CvImage(header, "64FC1", _img_cv_front).toImageMsg();
+	sensor_msgs::ImagePtr img_ros_front = cv_bridge::CvImage(header, "mono8", _img_sub_d).toImageMsg();
 	// _pub_img_64f.publish(img_ros_64f);
 	_pub_img_16u.publish(img_ros_16u);
 	_pub_img_8u.publish(img_ros_8u);
+	_pub_img_front.publish(img_ros_front);
 
 	/*check*/
 	// cv_bridge::CvImagePtr cv_ptr_64f = cv_bridge::toCvCopy(img_ros_64f, img_ros_64f->encoding);
@@ -322,6 +353,9 @@ void VelodynePointcloudToDepthimage::publication(std_msgs::Header header)
 
 void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedImageConstPtr &msg)
 {
+	
+	std::cout <<" callbackRGB " << std::endl;
+
 	try {
 		_img_sub_rgb = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGRA16)->image;
 
@@ -399,7 +433,7 @@ void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedIm
 		_img_combine.push_back(_img_sub_g);
 		_img_combine.push_back(_img_sub_r);
 		_img_combine.push_back(_img_sub_d);
-		_img_combine.push_back(_img_sub_a);
+		// _img_combine.push_back(_img_sub_a);
 		cv::merge(_img_combine, output);
 
 		std::cout << "output size : " << output.size() << std::endl;
@@ -408,7 +442,7 @@ void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedIm
 
 		// cv::merge(std::vector<cv::Mat>{_img_sub_g, _img_sub_r, _img_sub_b, _img_sub_d, _img_sub_a}, _img_pub_rgbd);
 		
-		sensor_msgs::ImagePtr img_ros_rgbd = cv_bridge::CvImage(msg->header, "rgbda16", output).toImageMsg();
+		sensor_msgs::ImagePtr img_ros_rgbd = cv_bridge::CvImage(msg->header, "rgbd16", output).toImageMsg();
 		_pub_img_rgbd.publish(img_ros_rgbd);
 		is_velodyne_ok = false;	
 		ROS_INFO("publish rgbd image");	
@@ -421,7 +455,6 @@ void VelodynePointcloudToDepthimage::process()
 	ros::Rate loop_rate(10);
 
 	while(ros::ok()){
-		// generate_RGBD();
 		ros::spinOnce();
 		loop_rate.sleep();
 	}

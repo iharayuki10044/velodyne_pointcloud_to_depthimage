@@ -22,7 +22,12 @@
 		<!-- <param name="save_img_name" type="string" value="depth_"/> -->
         <param name="is_depthimage_show" type="bool" value="false"/>
 		<param name="is_depthimage_save" type="bool" value="false"/>
-		<param name="depthimage_show_rate" type="int" value="20"/>
+		<param name="depthimage_show_rate" type="int" value="5"/>
+		<param name="pub_rgbd_width" type="int" value="640"/>
+		<param name="pub_rgbd_height" type="int" value="480"/>
+
+		<remap from="/usb_cam/image_raw/compressed" to="/camera0/compressed"/>
+
 
     </node>
 </launch>
