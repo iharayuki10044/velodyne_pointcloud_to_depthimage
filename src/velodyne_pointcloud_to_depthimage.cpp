@@ -120,8 +120,6 @@ VelodynePointcloudToDepthimage::VelodynePointcloudToDepthimage()
 	/*sub*/
 	_sub_pc = _nh.subscribe("/velodyne_points", 1, &VelodynePointcloudToDepthimage::callbackPC, this);
 
-	_sub_rgb = _nh.subscribe("/usb_cam/image_raw/compressed", 1, &VelodynePointcloudToDepthimage::callbackRGB, this);
-
 	/*pub*/
 	_pub_img_64f = _nh.advertise<sensor_msgs::Image>("/depth_image/64fc1", 1);
 	_pub_img_16u = _nh.advertise<sensor_msgs::Image>("/depth_image/16uc1", 1);
@@ -178,7 +176,7 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 {
 	/*reset*/
 	// _img_cv_64f = cv::Mat::zeros(_num_ring, _points_per_ring, CV_64FC1);
-	_img_cv_64f = cv::Mat(_num_ring, _points_per_ring, CV_64FC1, cv::Scalar(-1));
+	// _img_cv_64f = cv::Mat(_num_ring, _points_per_ring, CV_64FC1, cv::Scalar(-1));
 	// _img_cv_64f = cv::Mat(_num_ring, _points_per_ring, CV_64FC1, cv::Scalar(1.797693134862315e+308));
 
 	_img_cv_8u = cv::Mat(_num_ring, _points_per_ring, CV_8UC1, cv::Scalar(255));
@@ -211,7 +209,7 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 				double angle = atan2(_rings[i]->points[j].y, _rings[i]->points[j].x);
 				int col = _points_per_ring - (int)((angle + M_PI)/angle_resolution) - 1;
 				past_col = col;	
-				_img_cv_64f.at<double>(row, col) = sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y);
+				// _img_cv_64f.at<double>(row, col) = sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y);
 
 				// _img_cv_8u.at<u_int8_t> (row, col) = (u_int8_t)(sqrt(_rings[i]->points[j].x*_rings[i]->points[j].x + _rings[i]->points[j].y*_rings[i]->points[j].y));
 					
@@ -232,7 +230,8 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 		}	
 	}
 	/*convert*/
-	_img_cv_8u.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
+	// _img_cv_8u.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
+	// _img_cv_8u.convertTo(_img_cv_16u, CV_16UC1, 1/_depth_resolution, 0);
 	// _img_cv_64f.convertTo(_img_cv_8u, CV_8UC1, 255/_max_range, 0);
 
 	// std::cout << "------------------" << std::endl;
@@ -263,23 +262,22 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 
 	cv::resize(output, _img_sub_d, cv::Size(pub_rgbd_width, pub_rgbd_height), 0, 0, cv::INTER_NEAREST);
 
-
 	// std::cout << "img resize size : " << _img_sub_d.size() << std::endl;
 
 	// std::cout << "------------------" << std::endl;
 
 	_save_counter++;
-	if((_save_counter % depthimage_show_rate == 0)&&(is_depthimage_save)){
-		std::string filename = "/home/amsl/rgbd_test/front_depth_" + std::to_string(_save_counter) + ".png";
-		std::string filename_resize = "/home/amsl/rgbd_test/front_depth_resize" + std::to_string(_save_counter) + ".png";
-		cv::imwrite(filename, output);
-	}
+	// if((_save_counter % depthimage_show_rate == 0)&&(is_depthimage_save)){
+	// 	std::string filename = "/home/amsl/rgbd_test/front_depth_" + std::to_string(_save_counter) + ".png";
+	// 	std::string filename_resize = "/home/amsl/rgbd_test/front_depth_resize" + std::to_string(_save_counter) + ".png";
+	// 	cv::imwrite(filename, output);
+	// }
 
-	if((_save_counter % depthimage_show_rate == 0)&&(is_depthimage_show)){
-		cv::imshow("depth_moto", output);
-		cv::imshow("depth_resize", _img_sub_d);
-		cv::waitKey(2000);
-	}
+	// if((_save_counter % depthimage_show_rate == 0)&&(is_depthimage_show)){
+	// 	cv::imshow("depth_moto", output);
+	// 	cv::imshow("depth_resize", _img_sub_d);
+	// 	cv::waitKey(2000);
+	// }
 
 
 	is_velodyne_ok = true;
@@ -288,67 +286,13 @@ void VelodynePointcloudToDepthimage::ringsToImage(void)
 	// std::cout << "save count " << _save_counter << std::endl;
 	// std::cout << "------------------" << std::endl;
 
-	/*save*/
-	if(_save_limit > 0 && _save_counter < _save_limit){
-		/*CV_64FC1*/
-		std::string save_mat64f_path = _save_root_path + "/" + _save_img_name + std::to_string(_save_counter) + "_64f.xml";
-		cv::FileStorage fs(save_mat64f_path, cv::FileStorage::WRITE);
-		if(!fs.isOpened()){
-			std::cout << save_mat64f_path << " cannot be opened" << std::endl;
-			exit(1);
-		}
-		fs << "mat" << _img_cv_64f;
-		fs.release();
-		/*CV_16UC1*/
-		std::string save_img16u_path = _save_root_path + "/"  + _save_img_name + std::to_string(_save_counter) + "_16u.jpg";
-		cv::imwrite(save_img16u_path, _img_cv_16u);
-		/*CV_8UC1*/
-		std::string save_img8u_path = _save_root_path + "/"  + _save_img_name + std::to_string(_save_counter) + "_8u.jpg";
-		cv::imwrite(save_img8u_path, _img_cv_8u);
-		/*count*/
-		++_save_counter;
-		/*print*/
-		std::cout << "----- " << _save_counter << " -----" << std::endl;
-		std::cout << "_img_cv_64f: " << _img_cv_64f.size().height << " x " << _img_cv_64f.size().width << std::endl;
-		std::cout << "_img_cv_16u: " << _img_cv_16u.size().height << " x " << _img_cv_16u.size().width << std::endl;
-		std::cout << "_img_cv_8u: " << _img_cv_8u.size().height << " x " << _img_cv_8u.size().width << std::endl;
-	
-		// for(int row=0 ; row<_img_cv_64f.size().height ; row+=_img_cv_64f.size().height/3){
-		// 	for(int col=0 ; col<_img_cv_64f.size().width ; col+=_img_cv_64f.size().width/3){
-		// 		std::cout << "_img_cv_64f.at<double>(" << row << ", " << col << ") = " << _img_cv_64f.at<double>(row, col) << std::endl;
-		// 		std::cout << "_img_cv_16u.at<unsigned short>(" << row << ", " << col << ") = " << _img_cv_16u.at<unsigned short>(row, col) << std::endl;
-		// 		std::cout << "_img_cv_16u.at<unsigned long int>(" << row << ", " << col << ") = " << _img_cv_16u.at<unsigned long int>(row, col) << std::endl;
-		// 		std::cout << "(int)_img_cv_8u.at<unsigned char>(" << row << ", " << col << ") = " << (int)_img_cv_8u.at<unsigned char>(row, col) << std::endl;
-		// 	}
-		// }
-	}
 }
 
 void VelodynePointcloudToDepthimage::publication(std_msgs::Header header)
 {
-	sensor_msgs::ImagePtr img_ros_64f = cv_bridge::CvImage(header, "64FC1", _img_cv_64f).toImageMsg();
-	sensor_msgs::ImagePtr img_ros_16u = cv_bridge::CvImage(header, "mono16", _img_cv_16u).toImageMsg();
-	sensor_msgs::ImagePtr img_ros_8u = cv_bridge::CvImage(header, "mono8", _img_cv_8u).toImageMsg();
 	sensor_msgs::ImagePtr img_ros_front = cv_bridge::CvImage(header, "mono8", _img_sub_d).toImageMsg();
-	// _pub_img_64f.publish(img_ros_64f);
-	_pub_img_16u.publish(img_ros_16u);
-	_pub_img_8u.publish(img_ros_8u);
 	_pub_img_front.publish(img_ros_front);
 
-	/*check*/
-	// cv_bridge::CvImagePtr cv_ptr_64f = cv_bridge::toCvCopy(img_ros_64f, img_ros_64f->encoding);
-	// cv_bridge::CvImagePtr cv_ptr_16u = cv_bridge::toCvCopy(img_ros_16u, img_ros_16u->encoding);
-	// cv_bridge::CvImagePtr cv_ptr_8u = cv_bridge::toCvCopy(img_ros_8u, img_ros_8u->encoding);
-	// for(int row=0 ; row<cv_ptr_64f->image.size().height ; row+=cv_ptr_64f->image.size().height/3){
-	// 	for(int col=0 ; col<cv_ptr_64f->image.size().width ; col+=cv_ptr_64f->image.size().width/3){
-
-	// 		std::cout << "--------- check ---------" << std::endl;
-	// 		std::cout << "_img_cv_64f.at<double>(" << row << ", " << col << ") = " << _img_cv_64f.at<double>(row, col) << std::endl;
-	// 		std::cout << "cv_ptr_64f->image.at<double>(" << row << ", " << col << ") = " << cv_ptr_64f->image.at<double>(row, col) << std::endl;
-	// 		std::cout << "cv_ptr_16u->image.at<unsigned short>(" << row << ", " << col << ") = " << cv_ptr_16u->image.at<unsigned short>(row, col) << std::endl;
-	// 		std::cout << "(int)cv_ptr_8u->image.at<unsigned char>(" << row << ", " << col << ") = " << (int)cv_ptr_8u->image.at<unsigned char>(row, col) << std::endl;
-	// 	}
-	// }
 }
 
 void VelodynePointcloudToDepthimage::callbackRGB(const sensor_msgs::CompressedImageConstPtr &msg)
